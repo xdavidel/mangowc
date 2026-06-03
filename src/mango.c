@@ -310,6 +310,8 @@ typedef struct {
 	int32_t height;
 	enum corner_location corner_location;
 	bool should_scale;
+	struct wlr_fbox zoom_src;
+	bool use_zoom_src;
 } BufferData;
 
 struct Client {
@@ -977,6 +979,11 @@ static double swipe_dx = 0;
 static double swipe_dy = 0;
 
 bool render_border = true;
+
+/* magnifier/zoom */
+static float zoom_level = 1.0f;
+static double zoom_focus_x = 0.0;
+static double zoom_focus_y = 0.0;
 
 uint32_t chvt_backup_tag = 0;
 bool allow_frame_scheduling = true;
@@ -4740,6 +4747,12 @@ void motionnotify(uint32_t time, struct wlr_input_device *device, double dx,
 			selmon = xytomon(cursor->x, cursor->y);
 	}
 
+	if (zoom_level > 1.0f) {
+		zoom_focus_x = cursor->x;
+		zoom_focus_y = cursor->y;
+		request_fresh_all_monitors();
+	}
+
 	/* Find the client under the pointer and send the event along. */
 	xytonode(cursor->x, cursor->y, &surface, &c, NULL, &sx, &sy);
 
@@ -5077,7 +5090,6 @@ void rendermon(struct wl_listener *listener, void *data) {
 		monitor_stop_skip_frame_timer(m);
 	}
 
-	// 只有在需要帧时才构建和提交状态
 	if (config.allow_tearing && frame_allow_tearing) {
 		apply_tear_state(m);
 	} else {

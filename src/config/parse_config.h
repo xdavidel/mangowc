@@ -340,6 +340,8 @@ typedef struct {
 	float globalcolor[4];
 	float overlaycolor[4];
 
+	float zoom_magnifier_factor;
+
 	int32_t log_level;
 	uint32_t capslock;
 
@@ -1035,6 +1037,14 @@ FuncType parse_func_name(char *func_name, Arg *arg, char *arg_value,
 		func = focuslast;
 	} else if (strcmp(func_name, "toggle_trackpad_enable") == 0) {
 		func = toggle_trackpad_enable;
+	} else if (strcmp(func_name, "toggle_zoom") == 0) {
+		func = toggle_zoom;
+	} else if (strcmp(func_name, "zoom_in") == 0) {
+		func = zoom_in;
+		(*arg).f = atof(arg_value);
+	} else if (strcmp(func_name, "zoom_out") == 0) {
+		func = zoom_out;
+		(*arg).f = atof(arg_value);
 	} else if (strcmp(func_name, "setoption") == 0) {
 		func = setoption;
 
@@ -1319,6 +1329,8 @@ bool parse_option(Config *config, char *key, char *value) {
 		config->zoom_initial_ratio = atof(value);
 	} else if (strcmp(key, "zoom_end_ratio") == 0) {
 		config->zoom_end_ratio = atof(value);
+	} else if (strcmp(key, "zoom_magnifier_factor") == 0) {
+		config->zoom_magnifier_factor = CLAMP_FLOAT(atof(value), 1.0f, 10.0f);
 	} else if (strcmp(key, "fadein_begin_opacity") == 0) {
 		config->fadein_begin_opacity = atof(value);
 	} else if (strcmp(key, "fadeout_begin_opacity") == 0) {
@@ -3231,6 +3243,7 @@ void override_config(void) {
 	config.zoom_initial_ratio =
 		CLAMP_FLOAT(config.zoom_initial_ratio, 0.1f, 1.0f);
 	config.zoom_end_ratio = CLAMP_FLOAT(config.zoom_end_ratio, 0.1f, 1.0f);
+	config.zoom_magnifier_factor = CLAMP_FLOAT(config.zoom_magnifier_factor, 1.0f, 10.0f);
 	config.fadein_begin_opacity =
 		CLAMP_FLOAT(config.fadein_begin_opacity, 0.0f, 1.0f);
 	config.fadeout_begin_opacity =
@@ -3479,6 +3492,7 @@ void set_value_default() {
 	config.drag_tile_small = 1;
 	config.enable_floating_snap = 0;
 	config.swipe_min_threshold = 1;
+	config.zoom_magnifier_factor = 2.0f;
 
 	config.idleinhibit_ignore_visible = 0;
 

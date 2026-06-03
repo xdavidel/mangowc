@@ -1995,6 +1995,66 @@ int32_t dwindle_split_vertical(const Arg *arg) {
 	return dwindle_set_split_direction(c, false, false);
 }
 
+int32_t zoom_in(const Arg *arg) {
+	if (!selmon)
+		return 0;
+	float step = arg->f ? arg->f : 0.25f;
+	float new_level = zoom_level + step;
+	if (new_level > config.zoom_magnifier_factor)
+		new_level = config.zoom_magnifier_factor;
+	if (zoom_level <= 1.0f && new_level > 1.0f) {
+		zoom_focus_x = cursor->x;
+		zoom_focus_y = cursor->y;
+	}
+	zoom_level = new_level;
+	wlr_log(WLR_INFO, "zoom_in: level=%.2f", zoom_level);
+	{
+		Client *c;
+		wl_list_for_each(c, &clients, link)
+			c->need_output_flush = true;
+	}
+	request_fresh_all_monitors();
+	return 0;
+}
+
+int32_t zoom_out(const Arg *arg) {
+	if (!selmon)
+		return 0;
+	float step = arg->f ? arg->f : 0.25f;
+	float new_level = zoom_level - step;
+	if (new_level < 1.0f)
+		new_level = 1.0f;
+	zoom_level = new_level;
+	wlr_log(WLR_INFO, "zoom_out: level=%.2f", zoom_level);
+	{
+		Client *c;
+		wl_list_for_each(c, &clients, link)
+			c->need_output_flush = true;
+	}
+	request_fresh_all_monitors();
+	return 0;
+}
+
+int32_t toggle_zoom(const Arg *arg) {
+	if (!selmon)
+		return 0;
+	float new_level =
+		zoom_level > 1.0f ? 1.0f : config.zoom_magnifier_factor;
+	if (new_level > 1.0f) {
+		zoom_focus_x = cursor->x;
+		zoom_focus_y = cursor->y;
+	}
+	zoom_level = new_level;
+	wlr_log(WLR_INFO, "toggle_zoom: level=%.2f", zoom_level);
+	{
+		Client *c;
+		wl_list_for_each(c, &clients, link)
+			c->need_output_flush = true;
+	}
+	request_fresh_all_monitors();
+	return 0;
+}
+
 int32_t focusid(const Arg *arg) {
 	if (!selmon || !arg->tc)
 		return 0;

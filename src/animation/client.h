@@ -235,6 +235,26 @@ void scene_buffer_apply_effect(struct wlr_scene_buffer *buffer, int32_t sx,
 	if (wlr_xdg_popup_try_from_wlr_surface(surface) != NULL)
 		return;
 
+	if (buffer_data->use_zoom_src && buffer_data->zoom_src.width > 0 &&
+		buffer_data->zoom_src.height > 0 && buffer->buffer) {
+		struct wlr_fbox zoom_src = buffer_data->zoom_src;
+		if (wlr_subsurface_try_from_wlr_surface(surface)) {
+			zoom_src.x -= sx;
+			zoom_src.y -= sy;
+			if (zoom_src.x < 0) {
+				zoom_src.width += zoom_src.x;
+				zoom_src.x = 0;
+			}
+			if (zoom_src.y < 0) {
+				zoom_src.height += zoom_src.y;
+				zoom_src.y = 0;
+			}
+		}
+		if (zoom_src.width > 0 && zoom_src.height > 0) {
+			wlr_scene_buffer_set_source_box(buffer, &zoom_src);
+		}
+	}
+
 	wlr_scene_buffer_set_corner_radius(buffer, config.border_radius,
 									   buffer_data->corner_location);
 }
@@ -844,9 +864,25 @@ void client_apply_clip(Client *c, float factor) {
 											   &clip_box);
 		}
 
-		buffer_set_effect(c, (BufferData){1.0f, 1.0f, clip_box.width,
-										  clip_box.height,
-										  current_corner_location, true});
+		BufferData bd = {1.0f, 1.0f, clip_box.width, clip_box.height,
+						current_corner_location, true};
+		if (zoom_level > 1.0f) {
+			float z = zoom_level;
+			double cx = zoom_focus_x - c->animation.current.x - c->bw;
+			double cy = zoom_focus_y - c->animation.current.y - c->bw;
+			double src_w = clip_box.width / (double)z;
+			double src_h = clip_box.height / (double)z;
+			double sx = cx - src_w / 2.0;
+			double sy = cy - src_h / 2.0;
+			if (sx < 0.0) sx = 0.0;
+			if (sy < 0.0) sy = 0.0;
+			bd.zoom_src = (struct wlr_fbox){
+				.x = sx, .y = sy,
+				.width = src_w, .height = src_h,
+			};
+			bd.use_zoom_src = true;
+		}
+		buffer_set_effect(c, bd);
 		return;
 	}
 
@@ -915,6 +951,23 @@ void client_apply_clip(Client *c, float factor) {
 			(float)buffer_data.width / acutal_surface_width;
 		buffer_data.height_scale =
 			(float)buffer_data.height / acutal_surface_height;
+	}
+
+	if (zoom_level > 1.0f) {
+		float z = zoom_level;
+		double cx = zoom_focus_x - c->animation.current.x - c->bw;
+		double cy = zoom_focus_y - c->animation.current.y - c->bw;
+		double src_w = buffer_data.width / (double)z;
+		double src_h = buffer_data.height / (double)z;
+		double sx = cx - src_w / 2.0;
+		double sy = cy - src_h / 2.0;
+		if (sx < 0.0) sx = 0.0;
+		if (sy < 0.0) sy = 0.0;
+		buffer_data.zoom_src = (struct wlr_fbox){
+			.x = sx, .y = sy,
+			.width = src_w, .height = src_h,
+		};
+		buffer_data.use_zoom_src = true;
 	}
 
 	buffer_set_effect(c, buffer_data);
@@ -1508,7 +1561,9 @@ bool client_draw_frame(Client *c) {
 		return false;
 
 	if (!c->need_output_flush) {
-		return client_apply_focus_opacity(c);
+		if (zoom_level <= 1.0f)
+			return client_apply_focus_opacity(c);
+		c->need_output_flush = true;
 	}
 
 	if (config.animations && c->animation.running) {
