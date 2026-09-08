@@ -741,8 +741,8 @@ void vertical_scroller(Monitor *m) {
 		arrange_stack_vertical_node(heads[focus_index], target_geom,
 									cur_gappih);
 	} else {
-		bar_height = !root_client->isfullscreen && (root_client->group_prev ||
-													root_client->group_next)
+		bar_height = !root_client->isfullscreen &&
+							 client_wants_titlebar(root_client)
 						 ? config.group_bar_height
 						 : 0;
 
@@ -761,8 +761,7 @@ void vertical_scroller(Monitor *m) {
 		vertical_scroll_adjust_fullandmax(cur->client, &up_geom);
 
 		bar_height = !heads[focus_index - i + 1]->client->isfullscreen &&
-							 (heads[focus_index - i + 1]->client->group_prev ||
-							  heads[focus_index - i + 1]->client->group_next)
+							 client_wants_titlebar(heads[focus_index - i + 1]->client)
 						 ? config.group_bar_height
 						 : 0;
 

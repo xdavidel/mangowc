@@ -1842,6 +1842,16 @@ void toggle_gaps(const Arg *arg) {
 	return;
 }
 
+void toggle_titlebars(const Arg *arg) {
+	config.enable_titlebars ^= 1;
+	Monitor *m = NULL;
+	wl_list_for_each(m, &server.monitors, link) {
+		if (m->wlr_output->enabled)
+			arrange(m, false, false);
+	}
+	return;
+}
+
 void toggle_maximize_screen(const Arg *arg) {
 	if (!server.selected_monitor)
 		return;

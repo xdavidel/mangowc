@@ -390,9 +390,12 @@ void client_draw_groupbar(Client *c, struct ivec2 offsets) {
 	if (!c || !c->group_bar)
 		return;
 
-	if (!c->group_next && !c->group_prev) {
+	if (!c->group_next && !c->group_prev && !config.enable_titlebars) {
 		if (c->group_bar->scene_buffer->node.enabled)
 			wlr_scene_node_set_enabled(&c->group_bar->scene_buffer->node,
+									   false);
+		if (c->titlebar_close && c->titlebar_close->scene_buffer->node.enabled)
+			wlr_scene_node_set_enabled(&c->titlebar_close->scene_buffer->node,
 									   false);
 		return;
 	}
@@ -437,6 +440,10 @@ void client_draw_groupbar(Client *c, struct ivec2 offsets) {
 			if (cur->group_bar)
 				wlr_scene_node_set_enabled(&cur->group_bar->scene_buffer->node,
 										   false);
+			if (cur->titlebar_close &&
+				cur->titlebar_close->scene_buffer->node.enabled)
+				wlr_scene_node_set_enabled(
+					&cur->titlebar_close->scene_buffer->node, false);
 			cur = cur->group_next;
 		}
 		return;
@@ -447,13 +454,41 @@ void client_draw_groupbar(Client *c, struct ivec2 offsets) {
 	int32_t bar_w = tw / count;
 	int32_t rem = tw % count;
 	int32_t x = tab_x;
+	int32_t c_tab_x = -1, c_tab_w = 0;
 	cur = head;
 
 	for (int i = 0; i < count && cur; i++) {
 		int32_t w = bar_w + (i < rem ? 1 : 0);
 		global_draw_group_bar(cur, x, tab_y, w, th);
+		if (cur == c) {
+			c_tab_x = x;
+			c_tab_w = w;
+		}
 		x += w;
 		cur = cur->group_next;
+	}
+
+	/* Close button, positioned at the right edge of this client's own tab. */
+	if (c->titlebar_close) {
+		if (config.enable_titlebars && c_tab_x >= 0 && th > 0) {
+			int32_t bsize = config.titlebar_button_size;
+			if (bsize > th)
+				bsize = th;
+			int32_t margin = config.titlebar_button_margin;
+			/* inset past the window border so the button doesn't overlap it */
+			int32_t bx = c_tab_x + c_tab_w - bsize - margin - (int32_t)c->bw;
+			int32_t by = tab_y + (th - bsize) / 2;
+			float scale = c->mon ? c->mon->wlr_output->scale : 1.0f;
+			mango_close_button_set(c->titlebar_close, bsize, scale,
+								   server.titlebar_hover_client == c);
+			wlr_scene_node_set_position(&c->titlebar_close->scene_buffer->node,
+										bx, by);
+			wlr_scene_node_set_enabled(&c->titlebar_close->scene_buffer->node,
+									   true);
+		} else if (c->titlebar_close->scene_buffer->node.enabled) {
+			wlr_scene_node_set_enabled(&c->titlebar_close->scene_buffer->node,
+									   false);
+		}
 	}
 }
 void client_draw_shield(Client *c, struct ivec2 clip_box) {
