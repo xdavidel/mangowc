@@ -187,6 +187,11 @@ void horizontal_check_scroller_root_inside_mon(Client *c,
 											   struct wlr_box *geometry) {
 	if (!c || !c->mon)
 		return;
+	/* While previewing a titlebar-drag scroll, let the focused column move
+	 * freely off-edge instead of snapping it back to center. */
+	if (server.titlebar_scroll_active && server.titlebar_drag_client &&
+		server.titlebar_drag_client->mon == c->mon)
+		return;
 	if (!GEOMINSIDEMON(geometry, c->mon)) {
 		geometry->x = c->mon->w.x + (c->mon->w.width - geometry->width) / 2;
 	}
@@ -453,7 +458,7 @@ void scroller(Monitor *m) {
 	if (n_heads == 1 && scroller_ignore_proportion_single) {
 		need_scroller = true;
 	}
-	if (server.start_drag_window)
+	if (server.start_drag_window || server.titlebar_scroll_active)
 		need_scroller = false;
 
 	struct wlr_box target_geom;
@@ -783,6 +788,23 @@ void vertical_scroller(Monitor *m) {
 
 	sync_scroller_state_to_clients(m, tag);
 	free(heads);
+}
+
+/* Live preview pan of the horizontal scroller by dx px, anchored on the
+ * selected column (titlebar-drag scroll preview). Committed on release. */
+void scroller_pan_view(Monitor *m, int32_t dx) {
+	if (!m || dx == 0 || m->isoverview)
+		return;
+	if (!is_horizontal_scroller_layout(m))
+		return;
+	Client *sel = m->sel;
+	if (!sel || !ISSCROLLTILED(sel))
+		return;
+	Client *head = scroll_get_stack_head_client(sel);
+	if (!head)
+		return;
+	head->geom.x += dx;
+	arrange(m, false, false);
 }
 
 void scroller_remove_client(Client *c) {

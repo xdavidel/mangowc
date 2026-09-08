@@ -780,6 +780,16 @@ void client_set_drop_area(Client *c) {
 	int32_t client_width = c->geom.width - 2 * bw;
 	int32_t client_height = c->geom.height - 2 * bw;
 
+	/* Dropping onto a titlebar joins the whole window: highlight all of it. */
+	if (server.drop_to_group && server.drop_client == c) {
+		if (!first_draw && c->drop_direction == UNDIR)
+			return;
+		c->drop_direction = UNDIR;
+		wlr_scene_node_set_position(&c->droparea->node, bw, bw);
+		wlr_scene_rect_set_size(c->droparea, client_width, client_height);
+		return;
+	}
+
 	double rel_x = server.cursor->x - c->geom.x - bw;
 	double rel_y = server.cursor->y - c->geom.y - bw;
 
