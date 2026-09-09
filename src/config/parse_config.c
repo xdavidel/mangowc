@@ -3886,7 +3886,7 @@ void set_value_default() {
 
 	config.borderpx = 4;
 	config.group_bar_height = 50;
-	config.enable_titlebars = 1;
+	config.enable_titlebars = 0;
 	config.titlebar_button_size = 16;
 	config.titlebar_button_margin = 4;
 	config.title_close_color[0] = 0xad / 255.0f;
